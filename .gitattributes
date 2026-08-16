@@ -1,0 +1,6 @@
+# Notes are LF on disk; keep the repo consistent regardless of the checkout platform.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary
