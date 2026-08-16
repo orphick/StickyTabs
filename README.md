@@ -18,18 +18,41 @@ them in Notepad, edit them in Vim, grep them, sync them with whatever you alread
 back them up by copying a directory. If StickyTabs disappeared tomorrow your notes would
 be exactly as readable as they are today.
 
-## Install
-
-Grab the installer from [Releases](../../releases):
-
-- **`StickyTabs_x64-setup.exe`** — installs for the current user, no admin prompt.
-- `StickyTabs_x64_en-US.msi` — for `msiexec` / Group Policy deployment.
-
-The builds are unsigned, so SmartScreen shows *"Windows protected your PC"* on first run —
-click **More info → Run anyway**. Uninstall from Settings → Apps.
+## Get it running
 
 Windows 10/11 x64. WebView2 is required and ships with Windows 11; on Windows 10 the
 installer pulls it in if it is missing.
+
+### Build it yourself
+
+The reliable path, and the only one that works the moment you clone. You need
+[Node](https://nodejs.org) 18+, [Rust](https://rustup.rs), and the MSVC build tools
+(Visual Studio Build Tools with **Desktop development with C++**).
+
+```bash
+npm install
+npm run tauri build
+```
+
+That produces two installers in `src-tauri/target/release/bundle/`:
+
+- `nsis/StickyTabs_1.0.0_x64-setup.exe` — per-user install, no admin prompt. Use this one.
+- `msi/StickyTabs_1.0.0_x64_en-US.msi` — for `msiexec` / Group Policy deployment.
+
+To just run it without installing anything:
+
+```bash
+npm install
+npm run tauri dev
+```
+
+### Prebuilt installers
+
+Attached to [Releases](../../releases), when a version has been tagged. If that page is
+empty, build from source above — it takes about five minutes, most of it Rust compiling.
+
+Builds are unsigned either way, so SmartScreen shows *"Windows protected your PC"* on
+first run — click **More info → Run anyway**. Uninstall from Settings → Apps.
 
 ## Where the window goes
 
@@ -116,21 +139,7 @@ Newest date group at the top. The heading is created if today's does not exist y
 reused if it does. A toast offers **Undo** for 1.5 s, which puts both documents back
 exactly as they were. Which tab counts as the Report tab is configurable in settings.
 
-## Building from source
-
-Requires [Node](https://nodejs.org) 18+, [Rust](https://rustup.rs), and the MSVC build
-tools (Visual Studio Build Tools with "Desktop development with C++").
-
-```bash
-npm install
-npm run tauri dev
-```
-
-Build the installers — output lands in `src-tauri/target/release/bundle/`:
-
-```bash
-npm run tauri build
-```
+## Development
 
 Run the checks:
 
