@@ -13,19 +13,12 @@ use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 /// that keeps a wedged renderer from making the app unquittable.
 const EVENT_QUIT_REQUESTED: &str = "stickytabs://quit-requested";
 
-/// Emitted when the window is shown by the tray or the global hotkey, so the frontend can
-/// put the caret back where the user left it.
+/// Emitted when the window is shown by the tray or by relaunching, so the frontend can put
+/// the caret back where the user left it.
 const EVENT_SHOWN: &str = "stickytabs://shown";
 
 fn main_window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window("main")
-}
-
-/// The show/hide hotkey, Ctrl+Shift+N.
-#[cfg(desktop)]
-fn hotkey() -> tauri_plugin_global_shortcut::Shortcut {
-    use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
-    Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyN)
 }
 
 /// Write the current window geometry to disk.
@@ -58,7 +51,7 @@ fn toggle_visibility(app: &AppHandle) {
     let focused = window.is_focused().unwrap_or(false);
 
     // Visible but unfocused (buried behind another window) counts as "not really here",
-    // so the hotkey raises it instead of hiding it.
+    // so a tray click raises it instead of hiding it.
     if visible && focused {
         save_geometry(app);
         let _ = window.hide();
@@ -148,11 +141,10 @@ pub fn run() {
 
     // Single instance MUST be the first plugin registered.
     //
-    // This app normally lives hidden in the tray, so launching it again from the Start
-    // menu is the most obvious way a user tries to get it back. Without this, that second
-    // launch is a whole separate process that cannot register the global hotkey, dies on
-    // startup, and leaves the user staring at nothing with no way back in short of Task
-    // Manager. Here the second launch simply hands the window back and exits.
+    // This app lives hidden in the tray, so launching it again from the Start menu is the
+    // most obvious way a user tries to get it back — and with no global hotkey it is one of
+    // only two ways. Without this, that second launch would be a whole separate process
+    // with its own empty window. Here it simply hands the existing window back and exits.
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
@@ -179,26 +171,12 @@ pub fn run() {
                 .build(),
         );
 
-    #[cfg(desktop)]
-    {
-        use tauri_plugin_global_shortcut::ShortcutState;
-
-        // Note the handler is attached here but the shortcut itself is registered in
-        // `setup`, where a failure can be swallowed. Registering it through
-        // `with_shortcut` aborts app startup if the key is already taken — by another
-        // program, or by a copy of this app that is still running — which is precisely
-        // how a hidden instance became unreachable.
-        builder = builder.plugin(
-            tauri_plugin_global_shortcut::Builder::new()
-                .with_handler(move |app, received, event| {
-                    // Fire on press only; the release would immediately toggle back.
-                    if received == &hotkey() && event.state() == ShortcutState::Pressed {
-                        toggle_visibility(app);
-                    }
-                })
-                .build(),
-        );
-    }
+    // Deliberately no global shortcut.
+    //
+    // This used to register Ctrl+Shift+N, which is Explorer's "New folder" — registering it
+    // globally takes it away from the entire OS for as long as the app is running, and the
+    // app is designed to run all day. A background note-taker silently breaking a standard
+    // Windows shortcut is a bad trade for a convenience the tray already provides.
 
     builder
         .invoke_handler(tauri::generate_handler![
@@ -217,17 +195,6 @@ pub fn run() {
         ])
         .setup(|app| {
             build_tray(app.handle())?;
-
-            // Best effort. If another program already owns Ctrl+Shift+N the app still
-            // starts perfectly well — the tray icon and relaunching both still bring the
-            // window back. A missing convenience is not worth a failed launch.
-            #[cfg(desktop)]
-            {
-                use tauri_plugin_global_shortcut::GlobalShortcutExt;
-                if let Err(error) = app.global_shortcut().register(hotkey()) {
-                    eprintln!("StickyTabs: could not register Ctrl+Shift+N: {error}");
-                }
-            }
 
             // Centre only when there is no saved geometry to restore. `"center": true` in
             // the config would run on every launch and silently beat the window-state

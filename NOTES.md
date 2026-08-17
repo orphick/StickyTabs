@@ -64,12 +64,19 @@ Everything else is as written. These are the places I chose differently, and why
 12. **Slugs are sanitised against Windows reserved device names.** A tab named "con" or
     "aux" would otherwise be uncreatable — `CON.txt` is the console, not a file.
 
-13. **Single-instance, and the global hotkey is best-effort.**
+13. **Single instance.**
     Not in the spec, but required to make it work. Because the app lives hidden in the
     tray, relaunching it is the obvious way a user tries to get it back — and a second
-    process cannot register `Ctrl+Shift+N`, so it died on startup and left the app
-    unreachable without Task Manager. A second launch now hands the window back to the
-    running copy, and hotkey registration failure is logged rather than fatal.
+    process would otherwise come up as its own separate window. A second launch now hands
+    the existing window back and exits.
+
+14. **The `Ctrl+Shift+N` global hotkey was removed.**
+    The spec asked for it, and it was wrong. `Ctrl+Shift+N` is Explorer's *New folder*;
+    registering it globally takes it from the whole OS for as long as the app runs, and
+    this app is designed to run all day. It broke New-folder everywhere in exchange for a
+    shortcut to a window the tray icon already opens. No global hotkey is registered now.
+    If one is ever added it must be an app-specific chord that Windows does not already
+    own, and it should be configurable and off by default.
 
 ---
 
@@ -99,8 +106,8 @@ keyboard dispatcher driving the real store — including `Ctrl+1..9` and `Ctrl+T
   it.
 - Deleting `tabs.json`, adding an orphan `shopping-list.txt`, and restarting rebuilt the
   tab list from the folder and adopted the orphan as "Shopping List" — no dialog.
-- `WM_CLOSE` left the process alive with the window hidden; `Ctrl+Shift+N` toggled it back
-  and hidden again.
+- `WM_CLOSE` left the process alive with the window hidden; relaunching the exe brought the
+  same process's window back rather than starting a second one.
 - Both installers build: `StickyTabs_1.0.0_x64_en-US.msi` (1.66 MB) and
   `StickyTabs_1.0.0_x64-setup.exe` (1.16 MB).
 

@@ -152,7 +152,7 @@ export function SettingsModal() {
         <div className="modal__hint">
           <kbd>Ctrl+Enter</kbd> move line to Report · <kbd>Ctrl+T</kbd> new tab ·{" "}
           <kbd>Ctrl+F</kbd> find · <kbd>Ctrl+Tab</kbd> cycle · <kbd>Ctrl+1..9</kbd> jump ·{" "}
-          <kbd>Ctrl+Shift+N</kbd> show/hide · double-click a tab to rename
+          double-click a tab to rename
         </div>
       </div>
     </div>

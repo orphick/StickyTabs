@@ -56,13 +56,16 @@ first run — click **More info → Run anyway**. Uninstall from Settings → Ap
 
 ## Where the window goes
 
-Closing the window **hides it to the system tray** — the app keeps running so the global
-hotkey still works. To bring it back, any of:
+Closing the window **hides it to the system tray**; the app keeps running. To bring it
+back, either:
 
-- press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>
 - click the tray icon — on Windows 11 new tray icons start in the overflow flyout behind
   the `^` chevron; drag it onto the taskbar to keep it visible
 - launch StickyTabs again; the running copy comes to the front
+
+There is deliberately **no global hotkey**. Registering one takes that key away from the
+whole OS for as long as the app runs, and this app is meant to run all day — the obvious
+candidate, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd>, is Explorer's *New folder*.
 
 **Quit** from the tray icon's right-click menu. That is the only way to fully exit.
 
@@ -114,7 +117,6 @@ window close, and quit.
 | <kbd>Ctrl</kbd>+<kbd>=</kbd> / <kbd>Ctrl</kbd>+<kbd>-</kbd> | font size |
 | <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> | undo / redo, per tab, surviving tab switches |
 | <kbd>Ctrl</kbd>+<kbd>S</kbd> | force a save (it already autosaves) |
-| <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> | show/hide from anywhere |
 
 Double-click a tab label to rename it — the `.txt` is renamed too, so the folder stays
 readable. Drag a tab along the strip to reorder. Middle-click to close. Right-click the
@@ -158,7 +160,7 @@ src/
 src-tauri/src/
   storage.rs    atomic writes, silent recovery, first-run seeding — the load-bearing file
   slug.rs       filename sanitising, including Windows reserved device names
-  lib.rs        tray, global hotkey, single instance, close-to-tray
+  lib.rs        tray, single instance, close-to-tray
 ```
 
 Tests: 65 frontend (`vitest`) and 23 Rust, covering the durability guarantees directly —
