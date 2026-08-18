@@ -163,7 +163,7 @@ src-tauri/src/
   lib.rs        tray, single instance, close-to-tray
 ```
 
-Tests: 65 frontend (`vitest`) and 23 Rust, covering the durability guarantees directly —
+Tests: 70 frontend (`vitest`) and 23 Rust, covering the durability guarantees directly —
 corrupt and missing `tabs.json` both rebuilding from the folder, orphan `.txt` adoption,
 BOM/CRLF round-trips, atomic replacement, and path-traversal refusal.
 

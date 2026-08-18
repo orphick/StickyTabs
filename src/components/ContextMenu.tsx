@@ -41,7 +41,14 @@ export function ContextMenu({ x, y, entries, onClose }: Props) {
   }, [x, y]);
 
   useEffect(() => {
-    const close = () => onClose();
+    // Capture phase, so a press anywhere else dismisses the menu before that press does
+    // anything else. It therefore also fires for presses ON the menu, ahead of React's own
+    // handlers — closing the menu there would unmount the button between pointerdown and
+    // pointerup, so no click would ever be delivered and every item would look dead.
+    const close = (event: Event) => {
+      if (event.target instanceof Node && ref.current?.contains(event.target)) return;
+      onClose();
+    };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();

@@ -78,11 +78,22 @@ Everything else is as written. These are the places I chose differently, and why
     If one is ever added it must be an app-specific chord that Windows does not already
     own, and it should be configurable and off by default.
 
+15. **`window.confirm` was replaced with an in-app dialog.**
+    The close-tab confirmation used `window.confirm`. Inside a frameless, always-on-top
+    WebView2 window that dialog is unreliable, and a `confirm()` that quietly returns
+    false turned "Close tab" into a menu item that did nothing — the exact symptom
+    reported. The confirmation is now an ordinary React modal, which also means it matches
+    the theme instead of appearing as a system-styled box.
+
+16. **Settings was removed from the tab right-click menu.**
+    It made a tab-scoped menu look like a general app menu. Settings stays on the editor's
+    right-click menu, where it belongs.
+
 ---
 
 # What was verified, and how
 
-**Automated** — 65 frontend tests (`npm test`) and 23 Rust tests (`cargo test`), all
+**Automated** — 70 frontend tests (`npm test`) and 23 Rust tests (`cargo test`), all
 passing, plus a clean `tsc --noEmit`, `eslint`, and production build.
 
 The Rust tests cover the durability requirements directly: a short write replacing a

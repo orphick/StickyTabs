@@ -632,3 +632,43 @@ button {
   color: #d4736a;
   user-select: text;
 }
+
+/* ----------------------------------------------------------------- confirm */
+
+.confirm__body {
+  font: 400 12px/1.55 var(--mono);
+  color: var(--fg2);
+  white-space: pre-line;
+}
+
+.confirm__row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.confirm__btn {
+  padding: 5px 12px;
+  font: 400 12px/1 var(--mono);
+  color: var(--fg2);
+  background: transparent;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.confirm__btn:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+.confirm__btn--primary {
+  color: var(--fg);
+  border-color: var(--accent);
+}
+
+.confirm__btn:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}

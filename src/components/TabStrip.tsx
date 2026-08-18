@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useStore } from "../store/store";
-import { ContextMenu, type MenuEntry } from "./ContextMenu";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { tabMenuEntries } from "../lib/tabMenu";
+import { ContextMenu } from "./ContextMenu";
 import { Tab } from "./Tab";
 
 /** Pointer travel before a press becomes a drag. Below this it is just a click. */
@@ -23,7 +25,6 @@ export function TabStrip() {
   const renameTab = useStore((s) => s.renameTab);
   const closeTab = useStore((s) => s.closeTab);
   const reorderTabs = useStore((s) => s.reorderTabs);
-  const setSettingsOpen = useStore((s) => s.setSettingsOpen);
   const patchSettings = useStore((s) => s.patchSettings);
   const reportSlug = useStore((s) => s.reportSlug());
 
@@ -33,6 +34,7 @@ export function TabStrip() {
   // which keeps pointermove off React's state path.
   const [, setDragVersion] = useState(0);
   const [menu, setMenu] = useState<{ x: number; y: number; slug: string } | null>(null);
+  const [pendingClose, setPendingClose] = useState<string | null>(null);
   const [fades, setFades] = useState({ left: false, right: false });
 
   const updateFades = useCallback(() => {
@@ -105,11 +107,8 @@ export function TabStrip() {
       const text = notes[slug] ?? "";
       // Confirm only when there is something to lose. An empty scratch tab closes silently.
       if (text.trim().length > 0) {
-        const tab = tabs.find((t) => t.slug === slug);
-        const ok = window.confirm(
-          `Close "${tab?.name ?? slug}"?\n\nThe note is moved to the _trash folder, not deleted.`,
-        );
-        if (!ok) return;
+        setPendingClose(slug);
+        return;
       }
       void closeTab(slug);
     },
@@ -177,7 +176,6 @@ export function TabStrip() {
           y={menu.y}
           onClose={() => setMenu(null)}
           entries={tabMenuEntries({
-            slug: menu.slug,
             isReport: menu.slug === reportSlug,
             onRename: () => {
               // Re-enter the tab's inline editor by taking the same path a double-click does.
@@ -188,39 +186,25 @@ export function TabStrip() {
             },
             onSetReport: () => patchSettings({ reportSlug: menu.slug }),
             onClose: () => requestClose(menu.slug),
-            onSettings: () => setSettingsOpen(true),
             canClose: tabs.length > 1,
           })}
+        />
+      ) : null}
+
+      {pendingClose ? (
+        <ConfirmDialog
+          title="Close tab"
+          body={`Close "${tabs.find((t) => t.slug === pendingClose)?.name ?? pendingClose}"?\n\nThe note is moved to the _trash folder, not deleted.`}
+          confirmLabel="Close tab"
+          onCancel={() => setPendingClose(null)}
+          onConfirm={() => {
+            const slug = pendingClose;
+            setPendingClose(null);
+            void closeTab(slug);
+          }}
         />
       ) : null}
     </div>
   );
 }
 
-function tabMenuEntries(options: {
-  slug: string;
-  isReport: boolean;
-  canClose: boolean;
-  onRename: () => void;
-  onSetReport: () => void;
-  onClose: () => void;
-  onSettings: () => void;
-}): MenuEntry[] {
-  return [
-    { label: "Rename", hint: "dbl-click", onSelect: options.onRename },
-    {
-      label: options.isReport ? "Is the Report tab" : "Use as Report tab",
-      disabled: options.isReport,
-      onSelect: options.onSetReport,
-    },
-    { separator: true },
-    {
-      label: "Close tab",
-      hint: "mid-click",
-      disabled: !options.canClose,
-      onSelect: options.onClose,
-    },
-    { separator: true },
-    { label: "Settings…", onSelect: options.onSettings },
-  ];
-}
