@@ -9,6 +9,7 @@ import { StatusBar } from "./components/StatusBar";
 import { TabStrip } from "./components/TabStrip";
 import { TitleBar } from "./components/TitleBar";
 import { Toast } from "./components/Toast";
+import type { NoteChange } from "./lib/externalChanges";
 import { findMatches, matchAfter } from "./lib/find";
 import { handleKeyDown } from "./lib/keys";
 import { quitApp, saveWindowGeometry } from "./storage/api";
@@ -19,6 +20,7 @@ import { useStore } from "./store/store";
 /** Events emitted by the Rust side. Kept in sync with the constants in `lib.rs`. */
 const EVENT_QUIT_REQUESTED = "stickytabs://quit-requested";
 const EVENT_SHOWN = "stickytabs://shown";
+const EVENT_NOTES_CHANGED = "stickytabs://notes-changed";
 
 export function App() {
   const ready = useStore((s) => s.ready);
@@ -79,6 +81,11 @@ export function App() {
     });
 
     // Shown by the tray or the global hotkey: put the caret back where it was.
+    // Notes edited outside the app, reported by the Rust watcher.
+    const unlistenNotes = listen<NoteChange[]>(EVENT_NOTES_CHANGED, (event) => {
+      useStore.getState().applyExternalChanges(event.payload);
+    });
+
     const unlistenShown = listen(EVENT_SHOWN, () => {
       const state = useStore.getState();
       const slug = state.activeSlug;
@@ -91,6 +98,7 @@ export function App() {
       void unlistenClose.then((off) => off());
       void unlistenFocus.then((off) => off());
       void unlistenQuit.then((off) => off());
+      void unlistenNotes.then((off) => off());
       void unlistenShown.then((off) => off());
     };
   }, []);

@@ -1,5 +1,6 @@
 mod slug;
 mod storage;
+mod watcher;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -195,6 +196,10 @@ pub fn run() {
         ])
         .setup(|app| {
             build_tray(app.handle())?;
+
+            // Reload notes edited outside the app. Started after the window exists so the
+            // first events have somewhere to go.
+            watcher::start(app.handle().clone());
 
             // Centre only when there is no saved geometry to restore. `"center": true` in
             // the config would run on every launch and silently beat the window-state

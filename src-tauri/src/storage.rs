@@ -180,7 +180,7 @@ fn note_path(slug: &str) -> Result<PathBuf, String> {
 }
 
 /// Creates the folder tree if it is missing. Cheap enough to call before any write.
-fn ensure_dirs() -> Result<(), String> {
+pub fn ensure_dirs() -> Result<(), String> {
     let trash = trash_dir()?;
     fs::create_dir_all(&trash).map_err(|e| format!("cannot create {}: {e}", trash.display()))
 }
@@ -449,7 +449,7 @@ pub fn load_workspace(today: String) -> Result<Workspace, String> {
 
 /// `my-notes-2` -> `My Notes 2`. Only used for orphan `.txt` files, where no display name
 /// was ever recorded.
-fn prettify_slug(slug: &str) -> String {
+pub fn prettify_slug(slug: &str) -> String {
     slug.split(['-', '_'])
         .filter(|part| !part.is_empty())
         .map(|part| {
@@ -491,7 +491,16 @@ fn seed_default_tabs(today: &str) -> Result<Vec<TabEntry>, String> {
 #[tauri::command]
 pub fn save_note(slug: String, text: String) -> Result<(), String> {
     ensure_dirs()?;
-    atomic_write(&note_path(&slug)?, &text)
+    atomic_write(&note_path(&slug)?, &text)?;
+    // Tell the watcher this content came from us, so it does not report our own save back
+    // to the frontend as an external edit.
+    crate::watcher::note_written(&slug, &text);
+    Ok(())
+}
+
+/// Read one note's text. Used by the watcher when a file changes underneath us.
+pub fn read_note(slug: &str) -> Result<String, String> {
+    read_note_file(&note_path(slug)?)
 }
 
 #[tauri::command]
@@ -519,6 +528,7 @@ pub fn create_note(name: String) -> Result<String, String> {
     let taken = scan_note_slugs()?;
     let slug = unique_slug(&name, &taken);
     atomic_write(&note_path(&slug)?, "")?;
+    crate::watcher::note_written(&slug, "");
     Ok(slug)
 }
 
@@ -545,6 +555,9 @@ pub fn rename_note(slug: String, new_name: String) -> Result<String, String> {
     let text = read_note_file(&from).unwrap_or_default();
     atomic_write(&to, &text)?;
     let _ = fs::remove_file(&from);
+    // Both halves of the rename are ours; neither should come back as an external edit.
+    crate::watcher::note_written(&new_slug, &text);
+    crate::watcher::note_forgotten(&slug);
     Ok(new_slug)
 }
 
@@ -571,6 +584,8 @@ pub fn trash_note(slug: String) -> Result<(), String> {
 
     let text = read_note_file(&from).unwrap_or_default();
     atomic_write(&to, &text)?;
+    // A file later reappearing at this slug is somebody else's doing, not our echo.
+    crate::watcher::note_forgotten(&slug);
     fs::remove_file(&from).map_err(|e| format!("cannot remove {}: {e}", from.display()))
 }
 

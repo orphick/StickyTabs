@@ -143,6 +143,16 @@ export function hasPendingWrites(): boolean {
 }
 
 /**
+ * True when this note has edits that have not reached disk yet.
+ *
+ * Used by the external-change reload: a note the user is actively typing into must not be
+ * overwritten by what is currently on disk, because their unsaved keystrokes are newer.
+ */
+export function hasPendingNote(slug: string): boolean {
+  return pending.has(`note:${slug}`);
+}
+
+/**
  * Drop a note's queued write. Used when a tab is closed: its text has already been moved
  * to `_trash`, and letting a stale debounce fire would recreate the `.txt` we just
  * removed and resurrect the tab on the next start.

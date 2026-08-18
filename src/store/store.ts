@@ -1,7 +1,14 @@
 import { create } from "zustand";
 
 import * as api from "../storage/api";
-import { cancelNote, flushAll, queueNote, queueSettings, queueTabs } from "../storage/autosave";
+import {
+  cancelNote,
+  flushAll,
+  hasPendingNote,
+  queueNote,
+  queueSettings,
+  queueTabs,
+} from "../storage/autosave";
 import type { FontSize, Settings, TabEntry, TabUiState, Theme } from "../storage/types";
 import { DEFAULT_SETTINGS, FONT_SIZES, normalizeSettings } from "../storage/types";
 import {
@@ -15,6 +22,12 @@ import {
   type Snapshot,
 } from "./history";
 import { cutRange, insertIntoReport, lineRangeAt, linesIn, resolveReportSlug } from "../lib/report";
+import type { NoteChange } from "../lib/externalChanges";
+import {
+  conflictMessage,
+  planExternalChanges,
+  reloadMessage,
+} from "../lib/externalChanges";
 import { readScrollTop, readSelection, restoreSelection } from "./editorRef";
 
 /** What an active toast is offering to undo. Both documents are snapshotted whole, which
@@ -54,6 +67,8 @@ interface State {
   find: FindState;
   toast: Toast | null;
   settingsOpen: boolean;
+  /** Notes changed on disk that clash with unsaved local edits. */
+  pendingExternal: NoteChange[];
 
   init: () => Promise<void>;
 
@@ -86,6 +101,9 @@ interface State {
   moveLineToReport: () => void;
   undoMove: () => void;
 
+  applyExternalChanges: (changes: NoteChange[]) => void;
+  acceptConflicts: () => void;
+
   reportSlug: () => string | null;
   activeText: () => string;
 }
@@ -114,6 +132,7 @@ export const useStore = create<State>((set, get) => ({
   find: { open: false, query: "", caseSensitive: false, index: -1 },
   toast: null,
   settingsOpen: false,
+  pendingExternal: [],
 
   async init() {
     try {
@@ -488,6 +507,99 @@ export const useStore = create<State>((set, get) => ({
     if (state.activeSlug === move.sourceSlug) {
       restoreSelection(move.sourceCaret, move.sourceCaret);
     }
+  },
+
+  /**
+   * Notes changed on disk underneath us, reported by the Rust watcher.
+   *
+   * A tab with nothing unsaved is simply replaced: the file is the source of truth and the
+   * user just edited it elsewhere. A tab with unsaved edits is never overwritten — both
+   * versions are real work — so it is offered as a choice instead. Reloads are pushed onto
+   * the undo stack, so an unwanted one is a Ctrl+Z away.
+   */
+  applyExternalChanges(changes) {
+    const state = get();
+    const plan = planExternalChanges({
+      changes,
+      tabs: state.tabs,
+      notes: state.notes,
+      isDirty: hasPendingNote,
+    });
+
+    if (plan.reload.length === 0 && plan.adopt.length === 0 && plan.conflicts.length === 0) {
+      return;
+    }
+
+    if (plan.reload.length > 0 || plan.adopt.length > 0) {
+      const notes = { ...state.notes };
+      const histories = { ...state.histories };
+      const tabs = [...state.tabs];
+
+      for (const change of plan.reload) {
+        // Seed an undo entry from the pre-reload text before replacing it.
+        histories[change.slug] = record(
+          historyFor(state, change.slug),
+          { text: notes[change.slug] ?? "", selStart: 0, selEnd: 0 },
+          "other",
+          { forceBreak: true, now: Date.now() },
+        );
+        notes[change.slug] = change.text;
+      }
+
+      for (const change of plan.adopt) {
+        notes[change.slug] = change.text;
+        tabs.push({ slug: change.slug, name: change.name });
+      }
+
+      set({ notes, histories, tabs });
+      if (plan.adopt.length > 0) queueTabs(tabs, get().activeSlug);
+    }
+
+    if (plan.conflicts.length > 0) {
+      set({
+        pendingExternal: plan.conflicts,
+        toast: {
+          message: conflictMessage(
+            plan.conflicts.map((c) => state.tabs.find((t) => t.slug === c.slug)?.name ?? c.slug),
+          ),
+          undo: null,
+        },
+      });
+      return;
+    }
+
+    const touched = [...plan.reload, ...plan.adopt];
+    if (touched.length > 0) {
+      set({
+        toast: {
+          message: reloadMessage(
+            touched.map((c) => get().tabs.find((t) => t.slug === c.slug)?.name ?? c.slug),
+          ),
+          undo: null,
+        },
+      });
+    }
+  },
+
+  /** Take the on-disk version for every note currently in conflict. */
+  acceptConflicts() {
+    const state = get();
+    if (state.pendingExternal.length === 0) return;
+
+    const notes = { ...state.notes };
+    const histories = { ...state.histories };
+    for (const change of state.pendingExternal) {
+      histories[change.slug] = record(
+        historyFor(state, change.slug),
+        { text: notes[change.slug] ?? "", selStart: 0, selEnd: 0 },
+        "other",
+        { forceBreak: true, now: Date.now() },
+      );
+      notes[change.slug] = change.text;
+      queueNote(change.slug, change.text);
+    }
+
+    set({ notes, histories, pendingExternal: [], toast: null });
   },
 
   reportSlug() {

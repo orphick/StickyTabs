@@ -89,11 +89,22 @@ Everything else is as written. These are the places I chose differently, and why
     It made a tab-scoped menu look like a general app menu. Settings stays on the editor's
     right-click menu, where it belongs.
 
+17. **Notes are watched, and external edits win over stale memory.**
+    Not in the spec. The frontend loaded every note once at startup and never re-read it,
+    so editing a note in Notepad while the app was running worked right up until you
+    touched that tab — at which point autosave wrote the stale in-memory copy back over
+    your file. Since the entire premise is "these are ordinary text files you can edit
+    anywhere", that was the one bug that contradicted the product. `watcher.rs` now
+    watches `notes\`, filters out the app's own writes by content hash, and reports
+    genuine changes. A clean tab reloads silently; a tab with unsaved edits is never
+    overwritten — both versions are real work, so the user is asked. Reloads go on the
+    undo stack.
+
 ---
 
 # What was verified, and how
 
-**Automated** — 70 frontend tests (`npm test`) and 23 Rust tests (`cargo test`), all
+**Automated** — 77 frontend tests (`npm test`) and 27 Rust tests (`cargo test`), all
 passing, plus a clean `tsc --noEmit`, `eslint`, and production build.
 
 The Rust tests cover the durability requirements directly: a short write replacing a
@@ -121,6 +132,12 @@ keyboard dispatcher driving the real store — including `Ctrl+1..9` and `Ctrl+T
   same process's window back rather than starting a second one.
 - Both installers build: `StickyTabs_1.0.0_x64_en-US.msi` (1.66 MB) and
   `StickyTabs_1.0.0_x64-setup.exe` (1.16 MB).
+- External-edit clobbering, reproduced then fixed: with the app running, rewriting
+  `schedule.txt` on disk and then typing in the app used to leave `Xline one` — the
+  external edit destroyed. On 1.0.3 the same sequence leaves the external text intact.
+- Dropping a new `shopping.txt` into `notes\` while running added a "Shopping" tab and
+  rewrote `tabs.json` within seconds, with no restart.
+- No feedback loop: 8 seconds idle after a reload used 0s of CPU and rewrote nothing.
 
 **Not verified live:** the tray icon's menu items, drag-to-reorder, inline rename, and the
 find bar's visual highlighting all need real mouse input or a human eye on the window, and

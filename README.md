@@ -87,8 +87,10 @@ notes\
 A `.txt` file **is** the note — there is no envelope format, no front-matter, no JSON
 wrapper. Which means:
 
-- Edit a note in any editor, restart, and it loads.
-- Drop a `.txt` into `notes\` and it becomes a tab.
+- Edit a note in any editor **while StickyTabs is running** and the tab reloads within a
+  moment. If you happen to have unsaved edits in that same tab, nothing is overwritten —
+  you are asked which version to keep.
+- Drop a `.txt` into `notes\` and it becomes a tab, without restarting.
 - Delete `tabs.json` and it is silently rebuilt by scanning the folder. No "restore?"
   dialog, because there is no decision to make — the text files are the truth.
 - Close a tab and the file moves to `_trash\` rather than being deleted.
@@ -161,9 +163,10 @@ src-tauri/src/
   storage.rs    atomic writes, silent recovery, first-run seeding — the load-bearing file
   slug.rs       filename sanitising, including Windows reserved device names
   lib.rs        tray, single instance, close-to-tray
+  watcher.rs    reloads notes edited outside the app, ignoring our own writes
 ```
 
-Tests: 70 frontend (`vitest`) and 23 Rust, covering the durability guarantees directly —
+Tests: 77 frontend (`vitest`) and 27 Rust, covering the durability guarantees directly —
 corrupt and missing `tabs.json` both rebuilding from the folder, orphan `.txt` adoption,
 BOM/CRLF round-trips, atomic replacement, and path-traversal refusal.
 
